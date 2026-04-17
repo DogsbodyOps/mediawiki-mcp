@@ -16,7 +16,7 @@ Gives Claude the ability to search, read, and edit your internal MediaWiki insta
 
 ---
 
-## Setup
+## Running locally
 
 ### 1. Clone and install
 
@@ -35,7 +35,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` with your wiki credentials:
 
 ```env
 WIKI_URL=https://wiki.your-org.com
@@ -44,36 +44,73 @@ WIKI_PASSWORD=YourPassword
 WIKI_TOTP_SECRET=YOURBASE32SECRET
 ```
 
-`WIKI_TOTP_SECRET` is the base32 secret from your authenticator app (the same one used to generate your TOTP codes). You can usually find it in your authenticator's account settings or via the `otpauth://` URI in BitWarden. This is required if your wiki enforces 2FA.
+`WIKI_TOTP_SECRET` is the base32 secret from your authenticator app. You can find it in your authenticator's account settings or via the `otpauth://` URI in BitWarden.
 
----
+### 3. Connect
 
-## Connecting to Claude Code (VS Code)
+**VS Code (Claude Code extension):** Open this folder in VS Code — `.vscode/mcp.json` is already configured. Approve the server when prompted.
 
-The `.vscode/mcp.json` file is already configured. Open this folder in VS Code with the Claude Code extension installed:
-
-1. VS Code will prompt you to **approve the MCP server** — click Allow
-2. The `mediawiki` server will appear in your MCP servers list
-3. Claude will use the wiki tools automatically when relevant
-
----
-
-## Connecting to Claude Code (CLI)
-
-The `.mcp.json` file in the project root is already configured with relative paths. Simply launch Claude Code from this directory:
+**Claude Code CLI:** Launch Claude Code from this directory:
 
 ```bash
-cd mediawiki-mcp
 claude
 ```
 
-The `mediawiki` tools will be available immediately.
+`.mcp.json` is already configured with relative paths and will work on any machine.
+
+---
+
+## Running hosted (Docker)
+
+Deploy once, connect from anywhere. The server runs over HTTP and users connect with an API key instead of running it locally.
+
+### 1. Configure
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+WIKI_URL=https://wiki.your-org.com
+WIKI_USERNAME=YourUsername
+WIKI_PASSWORD=YourPassword
+WIKI_TOTP_SECRET=YOURBASE32SECRET
+
+# Comma-separated list — issue a separate key per user/team
+MCP_API_KEY=key-alice,key-bob,key-ops-team
+
+PORT=8000
+```
+
+### 2. Start
+
+```bash
+docker compose up -d
+```
+
+### 3. Connect (client config)
+
+Users add this to their `.mcp.json` or `.vscode/mcp.json` instead of the local config:
+
+```json
+{
+  "mcpServers": {
+    "mediawiki": {
+      "type": "http",
+      "url": "https://your-host/mcp",
+      "headers": { "Authorization": "Bearer key-alice" }
+    }
+  }
+}
+```
+
+Put a reverse proxy (nginx, Caddy, etc.) in front for TLS — the container itself serves plain HTTP.
 
 ---
 
 ## Typical edit workflow
-
-For safe edits, follow this sequence:
 
 1. `wiki_search` — find the page
 2. `wiki_get_sections` — see the section layout and indices
@@ -87,8 +124,9 @@ Use `wiki_edit_page` only when creating a new page or doing a full rewrite.
 ## Security notes
 
 - `.env` is in `.gitignore` — never commit credentials
-- `WIKI_TOTP_SECRET` is sensitive — treat it the same as a password
+- `WIKI_TOTP_SECRET` and `MCP_API_KEY` are sensitive — treat them as passwords
 - All edits are recorded in MediaWiki history under your account name, giving a full audit trail
+- If `MCP_API_KEY` is not set, the HTTP server accepts all requests — only do this on a private network
 
 ## Use Cases
 

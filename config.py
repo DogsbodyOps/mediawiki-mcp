@@ -33,4 +33,8 @@ def get_config() -> dict:
             "Create a .env file in the project root with these values."
         )
 
-    return required
+    return {
+        **required,
+        "MCP_API_KEY": os.getenv("MCP_API_KEY"),
+        "PORT":        int(os.getenv("PORT", "8000")),
+    }

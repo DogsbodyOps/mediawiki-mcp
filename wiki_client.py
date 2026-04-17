@@ -76,9 +76,13 @@ class WikiClient:
         if result.get("status") != "UI":
             raise RuntimeError(f"MediaWiki login failed at step 1: {result}")
 
-        # Step 2: submit TOTP code, trying adjacent time windows to handle clock drift
+        # Step 2: submit TOTP code, trying adjacent time windows to handle clock drift.
+        # Range covers ±5 minutes — necessary for Docker/WSL2 environments where the
+        # container clock can drift significantly from the wiki server's clock.
         import time
-        for offset in [0, -30, 30, -60, 60]:
+        offsets = [i * 30 for i in range(0, 11)]          # 0, 30, 60 ... 300
+        offsets += [-i * 30 for i in range(1, 11)]        # -30, -60 ... -300
+        for offset in offsets:
             r = self.session.post(self.api_url, data={
                 "action":        "clientlogin",
                 "logintoken":    login_token,
