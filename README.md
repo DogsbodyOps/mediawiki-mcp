@@ -89,3 +89,26 @@ Use `wiki_edit_page` only when creating a new page or doing a full rewrite.
 - `.env` is in `.gitignore` — never commit credentials
 - `WIKI_TOTP_SECRET` is sensitive — treat it the same as a password
 - All edits are recorded in MediaWiki history under your account name, giving a full audit trail
+
+## Use Cases
+
+  Lookup & Research
+  - "Find the static IP for host stg-cpa-app14" — search then read the relevant IP page
+  - "What's the HAProxy config for the DTS environment?" — search + get sections
+  - "Summarize everything we have documented on ESX performance tuning"
+
+  Keeping Docs Up to Date
+  - "We decommissioned BE-CPA-Build5 — find every page that mentions it and update them"
+  - "Add stg-cpa-app14 with IP 192.168.x.x to the Static IP Addresses page"
+  - "Append a post-mortem summary to the incident page for last night's outage"
+
+  Onboarding / Knowledge Retrieval
+  - "What hosts are in the Bourne End DTS environment?" — search + read + summarize
+  - "Give me a runbook for setting up a new CPA QA server based on the wiki"
+
+  Auditing & Cross-Referencing
+  - "List all pages and flag any that haven't been updated recently" (via list + get)
+  - "Find all pages referencing a specific VLAN or subnet"
+
+  Assisted Authoring
+  - "Draft a new wiki page for stg-cpa-app14 based on similar host pages" — read a template page, then create a new one
