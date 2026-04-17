@@ -21,7 +21,7 @@ Gives Claude the ability to search, read, and edit your internal MediaWiki insta
 ### 1. Clone and install
 
 ```bash
-git clone <your-internal-repo-url>
+git clone https://github.com/DogsbodyOps/mediawiki-mcp.git
 cd mediawiki-mcp
 
 python3 -m venv venv
