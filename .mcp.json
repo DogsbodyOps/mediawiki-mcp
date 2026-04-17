@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mediawiki": {
+      "type": "stdio",
+      "command": "./venv/bin/python3",
+      "args": ["./server.py"]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "mediawiki": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/venv/bin/python3",
+      "args": ["${workspaceFolder}/server.py"],
+      "env": {}
+    }
+  }
+}
