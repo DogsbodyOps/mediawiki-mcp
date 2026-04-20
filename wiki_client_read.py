@@ -76,9 +76,13 @@ class WikiClient:
         if result.get("status") != "UI":
             raise RuntimeError(f"MediaWiki login failed at step 1: {result}")
 
-        # Step 2: submit TOTP code, trying adjacent time windows to handle clock drift
+        # Step 2: submit TOTP code, trying adjacent time windows to handle clock drift.
+        # Range covers ±5 minutes — necessary for Docker/WSL2 environments where the
+        # container clock can drift significantly from the wiki server's clock.
         import time
-        for offset in [0, -30, 30, -60, 60]:
+        offsets = [i * 30 for i in range(0, 11)]          # 0, 30, 60 ... 300
+        offsets += [-i * 30 for i in range(1, 11)]        # -30, -60 ... -300
+        for offset in offsets:
             r = self.session.post(self.api_url, data={
                 "action":        "clientlogin",
                 "logintoken":    login_token,
@@ -203,130 +207,3 @@ class WikiClient:
         r.raise_for_status()
         pages = r.json().get("query", {}).get("allpages", [])
         return [p["title"] for p in pages]
-
-    # -------------------------------------------------------------------------
-    # Write operations
-    # -------------------------------------------------------------------------
-
-    def _purge(self, title: str):
-        """Force a cache purge and link table update for a page."""
-        self.session.post(self.api_url, data={
-            "action":          "purge",
-            "titles":          title,
-            "forcelinkupdate": "1",
-            "format":          "json",
-        })
-
-    def edit_page(self, title: str, content: str, summary: str = "Edited via MCP") -> dict:
-        """
-        Create or overwrite a wiki page with the given wikitext.
-
-        :param title:   Page title
-        :param content: Full wikitext for the page
-        :param summary: Edit summary shown in the page history
-        Returns a dict with the API response (includes "result": "Success" on success).
-        """
-        csrf_token = self._get_csrf_token()
-
-        r = self.session.post(self.api_url, data={
-            "action":  "edit",
-            "title":   title,
-            "text":    content,       # Replaces the entire page content
-            "summary": summary,
-            "token":   csrf_token,
-            "format":  "json",
-            "bot":     True,          # Marks edit as a bot edit in page history
-        })
-        r.raise_for_status()
-
-        edit_result = r.json().get("edit", {})
-        if edit_result.get("result") != "Success":
-            raise RuntimeError(f"Edit failed: {r.json()}")
-
-        self._purge(title)
-        return edit_result
-
-    def section_edit(self, title: str, section: int, content: str, summary: str = "Edited via MCP") -> dict:
-        """
-        Replace the content of a single section by its zero-based index.
-
-        Section 0 is the lead (text before the first heading).
-        Section 1 is the first == Heading ==, and so on.
-
-        Use get_page() first to read the page and count sections manually,
-        or use get_page_sections() to get an indexed list.
-        """
-        csrf_token = self._get_csrf_token()
-
-        r = self.session.post(self.api_url, data={
-            "action":  "edit",
-            "title":   title,
-            "section": section,
-            "text":    content,
-            "summary": summary,
-            "token":   csrf_token,
-            "format":  "json",
-            "bot":     True,
-        })
-        r.raise_for_status()
-
-        edit_result = r.json().get("edit", {})
-        if edit_result.get("result") != "Success":
-            raise RuntimeError(f"Section edit failed: {r.json()}")
-
-        self._purge(title)
-        return edit_result
-
-    def get_page_sections(self, title: str) -> list[dict]:
-        """
-        Return a structured list of sections for a page.
-
-        Each entry: {"index": int, "level": int, "title": str, "line": str}
-        index 0 = lead section (before first heading).
-        """
-        r = self.session.get(self.api_url, params={
-            "action":   "parse",
-            "page":     title,
-            "prop":     "sections",
-            "format":   "json",
-        })
-        r.raise_for_status()
-
-        data = r.json()
-        if "error" in data:
-            raise RuntimeError(f"Could not parse sections: {data['error']}")
-
-        sections = [{"index": 0, "level": 0, "title": "(lead)", "line": "(lead)"}]
-        for s in data.get("parse", {}).get("sections", []):
-            sections.append({
-                "index": int(s["index"]),
-                "level": int(s["level"]),
-                "title": s["line"],
-                "line":  s["line"],
-            })
-        return sections
-
-    def append_to_page(self, title: str, content: str, summary: str = "Appended via MCP") -> dict:
-        """
-        Append wikitext to the END of an existing page without overwriting it.
-        Useful for adding entries to log pages, changelogs, etc.
-        """
-        csrf_token = self._get_csrf_token()
-
-        r = self.session.post(self.api_url, data={
-            "action":  "edit",
-            "title":   title,
-            "appendtext": content,    # appendtext instead of text = non-destructive
-            "summary": summary,
-            "token":   csrf_token,
-            "format":  "json",
-            "bot":     True,
-        })
-        r.raise_for_status()
-
-        edit_result = r.json().get("edit", {})
-        if edit_result.get("result") != "Success":
-            raise RuntimeError(f"Append failed: {r.json()}")
-
-        self._purge(title)
-        return edit_result
