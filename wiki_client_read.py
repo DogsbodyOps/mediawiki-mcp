@@ -12,10 +12,13 @@ Key auth flow:
   4. Use CSRF token in edit/delete/etc calls
 """
 
+import logging
 import re
 
 import pyotp
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class WikiClient:
@@ -71,9 +74,11 @@ class WikiClient:
         result = r.json().get("clientlogin", {})
 
         if result.get("status") == "PASS":
-            return  # No 2FA required (unlikely given config, but handle it)
+            logger.info("Logged in to MediaWiki as %s (no 2FA)", self.username)
+            return
 
         if result.get("status") != "UI":
+            logger.error("MediaWiki login failed at step 1: %s", result)
             raise RuntimeError(f"MediaWiki login failed at step 1: {result}")
 
         # Step 2: submit TOTP code, trying adjacent time windows to handle clock drift.
@@ -93,10 +98,12 @@ class WikiClient:
             r.raise_for_status()
             result = r.json().get("clientlogin", {})
             if result.get("status") == "PASS":
+                logger.info("Logged in to MediaWiki as %s (2FA succeeded)", self.username)
                 return
             if result.get("status") != "UI":
-                break  # Hard failure, no point retrying
+                break
 
+        logger.error("MediaWiki 2FA login failed: %s", result)
         raise RuntimeError(f"MediaWiki 2FA login failed: {result}")
 
     def _get_csrf_token(self) -> str:
@@ -142,15 +149,16 @@ class WikiClient:
         page = next(iter(pages.values()))
 
         if "missing" in page:
+            logger.info("get_page: page not found: %s", title)
             return {"title": title, "content": "", "exists": False}
 
-        # Navigate the nested structure to get wikitext
         content = (
             page.get("revisions", [{}])[0]
                 .get("slots", {})
                 .get("main", {})
                 .get("*", "")
         )
+        logger.info("get_page: fetched %s (%d bytes)", title, len(content))
         return {"title": page["title"], "content": content, "exists": True}
 
     def search(self, query: str, limit: int = 10) -> list[dict]:
@@ -175,7 +183,6 @@ class WikiClient:
 
         results = []
         for item in r.json().get("query", {}).get("search", []):
-            # Strip HTML tags from the snippet — MCP consumers expect plain text
             snippet = item.get("snippet", "")
             snippet = re.sub(r"<[^>]+>", "", snippet)
             results.append({
@@ -183,6 +190,7 @@ class WikiClient:
                 "snippet": snippet,
                 "size":    item.get("size", 0),
             })
+        logger.info("search: query=%r returned %d results", query, len(results))
         return results
 
     def list_pages(self, prefix: str = "", namespace: int = 0, limit: int = 20) -> list[str]:
@@ -206,4 +214,6 @@ class WikiClient:
         r = self.session.get(self.api_url, params=params)
         r.raise_for_status()
         pages = r.json().get("query", {}).get("allpages", [])
-        return [p["title"] for p in pages]
+        titles = [p["title"] for p in pages]
+        logger.info("list_pages: prefix=%r returned %d pages", prefix, len(titles))
+        return titles
