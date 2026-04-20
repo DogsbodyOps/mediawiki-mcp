@@ -25,7 +25,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from config import get_config
-from wiki_client_read import WikiClient
+from wiki_client import WikiClient
 
 
 # ---------------------------------------------------------------------------
