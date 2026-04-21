@@ -1,8 +1,9 @@
 services:
   mediawiki-mcp:
-    build: .    
+    image: ghcr.io/dogsbodyops/mediawiki-mcp:read-only-1.2.2
+    #image: ghcr.io/dogsbodyops/mediawiki-mcp:read-write-1.2.2
     ports:
-      - "${PORT:-8000}:8000"
+      - "8000:8000"
     env_file:
       - .env
     restart: unless-stopped
