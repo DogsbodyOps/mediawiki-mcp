@@ -4,15 +4,15 @@ Gives Claude the ability to search, read, and edit your internal MediaWiki insta
 
 ## Tools available to Claude
 
-| Tool | Description |
-|------|-------------|
-| `wiki_search` | Full-text search across all pages |
-| `wiki_get_page` | Fetch the wikitext of a specific page |
-| `wiki_list_pages` | List pages, optionally filtered by title prefix |
-| `wiki_get_sections` | List a page's sections with their index numbers |
-| `wiki_section_edit` | Replace a single section (safer than a full-page overwrite) |
-| `wiki_edit_page` | Create or overwrite an entire page |
-| `wiki_append_to_page` | Append text to the end of an existing page |
+| Tool | Description | Image |
+|------|-------------|-------|
+| `wiki_search` | Full-text search across all pages | both |
+| `wiki_get_page` | Fetch the wikitext of a specific page | both |
+| `wiki_list_pages` | List pages, optionally filtered by title prefix | both |
+| `wiki_get_sections` | List a page's sections with their index numbers | both |
+| `wiki_section_edit` | Replace a single section (safer than a full-page overwrite) | read-write only |
+| `wiki_edit_page` | Create or overwrite an entire page | read-write only |
+| `wiki_append_to_page` | Append text to the end of an existing page | read-write only |
 
 ---
 
@@ -60,9 +60,20 @@ claude
 
 ---
 
-## Running hosted (Docker)
+## Running in Docker
 
 Deploy once, connect from anywhere. The server runs over HTTP and users connect with an API key instead of running it locally.
+
+### Image variants
+
+Two pre-built images are published to GitHub Container Registry:
+
+| Image | Tools |
+|-------|-------|
+| `ghcr.io/dogsbodyops/mediawiki-mcp:read-only-1.2.2` | Search and read tools only |
+| `ghcr.io/dogsbodyops/mediawiki-mcp:read-write-1.2.2` | All tools including edit, section edit, and append |
+
+The `docker-compose.yml` uses the read-only image by default. To enable write access, comment out the read-only line and uncomment the read-write line.
 
 ### 1. Configure
 
@@ -84,13 +95,26 @@ MCP_API_KEY=key-alice,key-bob,key-ops-team
 PORT=8000
 ```
 
-### 2. Start
+### 2. Choose image variant
+
+`docker-compose.yml` defaults to read-only. To allow edits, swap the active image:
+
+```yaml
+services:
+  mediawiki-mcp:
+    #image: ghcr.io/dogsbodyops/mediawiki-mcp:read-only-1.2.2
+    image: ghcr.io/dogsbodyops/mediawiki-mcp:read-write-1.2.2
+```
+
+### 3. Start
 
 ```bash
 docker compose up -d
 ```
 
-### 3. Connect (client config)
+The container exposes port 8000 and includes a health check at `/health`.
+
+### 4. Connect (client config)
 
 Users add this to their `.mcp.json` or `.vscode/mcp.json` instead of the local config:
 
