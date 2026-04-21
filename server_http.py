@@ -21,6 +21,7 @@ Auth:
   Set MCP_API_KEY in .env. If unset, auth is disabled (not recommended in production).
 """
 
+import logging
 import uvicorn
 from contextlib import asynccontextmanager
 
@@ -29,7 +30,12 @@ from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Mount
+from starlette.routing import Mount, Route
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
@@ -91,9 +97,16 @@ async def handle_mcp(scope, receive, send):
     await session_manager.handle_request(scope, receive, send)
 
 
+async def health(request: Request):
+    return JSONResponse({"status": "ok"})
+
+
 starlette_app = Starlette(
     lifespan=lifespan,
-    routes=[Mount("/mcp", app=handle_mcp)],
+    routes=[
+        Route("/health", health),
+        Mount("/mcp", app=handle_mcp),
+    ],
     middleware=[Middleware(APIKeyMiddleware, api_keys=config["MCP_API_KEY"])],
 )
 
