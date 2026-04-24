@@ -35,6 +35,7 @@ def get_config() -> dict:
 
     return {
         **required,
-        "MCP_API_KEY": os.getenv("MCP_API_KEY"),
-        "PORT":        int(os.getenv("PORT", "8000")),
+        "MCP_API_KEY":      os.getenv("MCP_API_KEY"),
+        "PORT":             int(os.getenv("PORT", "8000")),
+        "WIKI_ALLOW_WRITE": os.getenv("WIKI_ALLOW_WRITE", "false").lower() in ("1", "true", "yes"),
     }

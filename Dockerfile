@@ -12,9 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 
-=======
-COPY server.py server_http.py config.py ./
-COPY wiki_client_write.py wiki_client.py
+COPY server.py server_http.py config.py wiki_client.py ./
 
 EXPOSE 8000
 

@@ -26,7 +26,6 @@ import uvicorn
 from contextlib import asynccontextmanager
 
 from starlette.applications import Starlette
-from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -67,7 +66,6 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         if not self.api_keys:
-            # No keys configured — allow all (dev/internal-only deployments)
             return await call_next(request)
 
         token = request.headers.get("Authorization", "").removeprefix("Bearer ")
@@ -97,6 +95,9 @@ async def handle_mcp(scope, receive, send):
     await session_manager.handle_request(scope, receive, send)
 
 
+mcp_handler = APIKeyMiddleware(handle_mcp, api_keys=config["MCP_API_KEY"])
+
+
 async def health(request: Request):
     return JSONResponse({"status": "ok"})
 
@@ -105,9 +106,8 @@ starlette_app = Starlette(
     lifespan=lifespan,
     routes=[
         Route("/health", health),
-        Mount("/mcp", app=handle_mcp),
+        Mount("/mcp", app=mcp_handler),
     ],
-    middleware=[Middleware(APIKeyMiddleware, api_keys=config["MCP_API_KEY"])],
 )
 
 

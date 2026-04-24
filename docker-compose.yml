@@ -1,9 +1,16 @@
 services:
   mediawiki-mcp:
-    image: ghcr.io/dogsbodyops/mediawiki-mcp:read-only-1.2.2
-    #image: ghcr.io/dogsbodyops/mediawiki-mcp:read-write-1.2.2
+    image: ghcr.io/dogsbodyops/mediawiki-mcp:v1.3.1
     ports:
       - "8000:8000"
     env_file:
       - .env
+    restart: unless-stopped
+
+  nginx-proxy:
+    image: jwilder/nginx-proxy:latest
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
     restart: unless-stopped

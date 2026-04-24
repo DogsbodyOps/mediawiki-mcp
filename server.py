@@ -25,7 +25,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from config import get_config
-from wiki_client_write import WikiClient
+from wiki_client import WikiClient
 
 
 # ---------------------------------------------------------------------------
@@ -53,9 +53,12 @@ app = Server("mediawiki-mcp")
 # The @app.list_tools() decorator registers a function that returns the list
 # of available tools. Claude reads this list to know what it can call.
 
+WRITE_TOOLS = {"wiki_edit_page", "wiki_section_edit", "wiki_append_to_page"}
+
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    return [
+    tools = [
         Tool(
             name="wiki_search",
             description=(
@@ -122,35 +125,6 @@ async def list_tools() -> list[Tool]:
         ),
 
         Tool(
-            name="wiki_edit_page",
-            description=(
-                "Create or fully replace a wiki page with new wikitext content. "
-                "WARNING: This overwrites the entire page. "
-                "Use wiki_get_page first to read the current content, then edit as needed. "
-                "Always include a meaningful edit summary."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Page title to create or overwrite",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Full wikitext content for the page",
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Edit summary shown in page history",
-                        "default": "Edited via MCP",
-                    },
-                },
-                "required": ["title", "content"],
-            },
-        ),
-
-        Tool(
             name="wiki_get_sections",
             description=(
                 "List the sections of a wiki page with their index numbers and heading titles. "
@@ -167,66 +141,100 @@ async def list_tools() -> list[Tool]:
                 "required": ["title"],
             },
         ),
-
-        Tool(
-            name="wiki_section_edit",
-            description=(
-                "Replace the content of a single section of a wiki page by section index. "
-                "Much safer than wiki_edit_page because it only touches one section. "
-                "Use wiki_get_sections first to find the right index, then wiki_get_page to read the current wikitext."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Page title",
-                    },
-                    "section": {
-                        "type": "integer",
-                        "description": "Zero-based section index. 0 = lead text, 1 = first heading, etc.",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Full wikitext replacement for that section (include the == Heading == line)",
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Edit summary shown in page history",
-                        "default": "Edited via MCP",
-                    },
-                },
-                "required": ["title", "section", "content"],
-            },
-        ),
-
-        Tool(
-            name="wiki_append_to_page",
-            description=(
-                "Append text to the END of an existing wiki page without overwriting it. "
-                "Ideal for adding new entries to log pages, runbooks, or changelogs."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Page title to append to",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Wikitext to append at the end of the page",
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Edit summary shown in page history",
-                        "default": "Appended via MCP",
-                    },
-                },
-                "required": ["title", "content"],
-            },
-        ),
     ]
+
+    if config["WIKI_ALLOW_WRITE"]:
+        tools += [
+            Tool(
+                name="wiki_edit_page",
+                description=(
+                    "Create or fully replace a wiki page with new wikitext content. "
+                    "WARNING: This overwrites the entire page. "
+                    "Use wiki_get_page first to read the current content, then edit as needed. "
+                    "Always include a meaningful edit summary."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Page title to create or overwrite",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Full wikitext content for the page",
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Edit summary shown in page history",
+                            "default": "Edited via MCP",
+                        },
+                    },
+                    "required": ["title", "content"],
+                },
+            ),
+
+            Tool(
+                name="wiki_section_edit",
+                description=(
+                    "Replace the content of a single section of a wiki page by section index. "
+                    "Much safer than wiki_edit_page because it only touches one section. "
+                    "Use wiki_get_sections first to find the right index, then wiki_get_page to read the current wikitext."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Page title",
+                        },
+                        "section": {
+                            "type": "integer",
+                            "description": "Zero-based section index. 0 = lead text, 1 = first heading, etc.",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Full wikitext replacement for that section (include the == Heading == line)",
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Edit summary shown in page history",
+                            "default": "Edited via MCP",
+                        },
+                    },
+                    "required": ["title", "section", "content"],
+                },
+            ),
+
+            Tool(
+                name="wiki_append_to_page",
+                description=(
+                    "Append text to the END of an existing wiki page without overwriting it. "
+                    "Ideal for adding new entries to log pages, runbooks, or changelogs."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Page title to append to",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Wikitext to append at the end of the page",
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Edit summary shown in page history",
+                            "default": "Appended via MCP",
+                        },
+                    },
+                    "required": ["title", "content"],
+                },
+            ),
+        ]
+
+    return tools
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +283,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if not titles:
             return [TextContent(type="text", text="No pages found.")]
         return [TextContent(type="text", text="\n".join(titles))]
+
+    elif name in WRITE_TOOLS and not config["WIKI_ALLOW_WRITE"]:
+        return [TextContent(type="text", text=f"Tool '{name}' is disabled. Set WIKI_ALLOW_WRITE=true to enable write access.")]
 
     elif name == "wiki_edit_page":
         result = wiki.edit_page(
