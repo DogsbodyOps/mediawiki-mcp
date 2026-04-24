@@ -1,0 +1,18 @@
+# Pipeline file to build and push the mediawiki-mcp Docker image to GitHub Container Registry.
+
+trigger:
+  branches:
+    include:
+      - releases/*
+
+pool:
+  vmImage: 'ubuntu-latest'
+steps:
+- task: Docker@2
+  displayName: Build and Push Docker Image
+  inputs:
+    command: 'buildAndPush'
+    repository: 'ghcr.io/dogsbodyops/mediawiki-mcp'
+    dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+    tags: '$(Build.SourceBranchName)'
+    containerRegistry: 'GitHubContainerRegistry'

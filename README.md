@@ -4,15 +4,15 @@ Gives Claude the ability to search, read, and edit your internal MediaWiki insta
 
 ## Tools available to Claude
 
-| Tool | Description | Image |
-|------|-------------|-------|
-| `wiki_search` | Full-text search across all pages | both |
-| `wiki_get_page` | Fetch the wikitext of a specific page | both |
-| `wiki_list_pages` | List pages, optionally filtered by title prefix | both |
-| `wiki_get_sections` | List a page's sections with their index numbers | both |
-| `wiki_section_edit` | Replace a single section (safer than a full-page overwrite) | read-write only |
-| `wiki_edit_page` | Create or overwrite an entire page | read-write only |
-| `wiki_append_to_page` | Append text to the end of an existing page | read-write only |
+| Tool | Description | Requires `WIKI_ALLOW_WRITE` |
+|------|-------------|:---:|
+| `wiki_search` | Full-text search across all pages | |
+| `wiki_get_page` | Fetch the wikitext of a specific page | |
+| `wiki_list_pages` | List pages, optionally filtered by title prefix | |
+| `wiki_get_sections` | List a page's sections with their index numbers | |
+| `wiki_section_edit` | Replace a single section (safer than a full-page overwrite) | ✓ |
+| `wiki_edit_page` | Create or overwrite an entire page | ✓ |
+| `wiki_append_to_page` | Append text to the end of an existing page | ✓ |
 
 ---
 
@@ -64,17 +64,6 @@ claude
 
 Deploy once, connect from anywhere. The server runs over HTTP and users connect with an API key instead of running it locally.
 
-### Image variants
-
-Two pre-built images are published to GitHub Container Registry:
-
-| Image | Tools |
-|-------|-------|
-| `ghcr.io/dogsbodyops/mediawiki-mcp:read-only-1.2.2` | Search and read tools only |
-| `ghcr.io/dogsbodyops/mediawiki-mcp:read-write-1.2.2` | All tools including edit, section edit, and append |
-
-The `docker-compose.yml` uses the read-only image by default. To enable write access, comment out the read-only line and uncomment the read-write line.
-
 ### 1. Configure
 
 ```bash
@@ -93,20 +82,12 @@ WIKI_TOTP_SECRET=YOURBASE32SECRET
 MCP_API_KEY=key-alice,key-bob,key-ops-team
 
 PORT=8000
+
+# Set to true to expose write tools (edit, section edit, append)
+WIKI_ALLOW_WRITE=false
 ```
 
-### 2. Choose image variant
-
-`docker-compose.yml` defaults to read-only. To allow edits, swap the active image:
-
-```yaml
-services:
-  mediawiki-mcp:
-    #image: ghcr.io/dogsbodyops/mediawiki-mcp:read-only-1.2.2
-    image: ghcr.io/dogsbodyops/mediawiki-mcp:read-write-1.2.2
-```
-
-### 3. Start
+### 2. Start
 
 ```bash
 docker compose up -d
@@ -114,7 +95,7 @@ docker compose up -d
 
 The container exposes port 8000 and includes a health check at `/health`.
 
-### 4. Connect (client config)
+### 3. Connect (client config)
 
 Users add this to their `.mcp.json` or `.vscode/mcp.json` instead of the local config:
 
@@ -149,6 +130,7 @@ Use `wiki_edit_page` only when creating a new page or doing a full rewrite.
 
 - `.env` is in `.gitignore` — never commit credentials
 - `WIKI_TOTP_SECRET` and `MCP_API_KEY` are sensitive — treat them as passwords
+- Write tools (`wiki_edit_page`, `wiki_section_edit`, `wiki_append_to_page`) are hidden from Claude unless `WIKI_ALLOW_WRITE=true` — defaults to read-only for safety
 - All edits are recorded in MediaWiki history under your account name, giving a full audit trail
 - If `MCP_API_KEY` is not set, the HTTP server accepts all requests — only do this on a private network
 
