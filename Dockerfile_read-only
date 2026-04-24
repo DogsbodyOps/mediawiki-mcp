@@ -11,6 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
+=======
 COPY server.py server_http.py config.py ./
 COPY wiki_client_read.py wiki_client.py
 
