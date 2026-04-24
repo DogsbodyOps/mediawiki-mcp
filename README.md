@@ -115,6 +115,26 @@ Put a reverse proxy (nginx, Caddy, etc.) in front for TLS — the container itse
 
 ---
 
+## Releasing a new version
+
+Releases are driven by a `releases/vX.Y.Z` branch. Pushing one triggers the Azure Pipeline, which:
+
+1. Builds and pushes `ghcr.io/dogsbodyops/mediawiki-mcp:vX.Y.Z` to GHCR
+2. Opens a PR from the release branch back to `main` automatically
+
+```bash
+git checkout main
+git pull
+git checkout -b releases/v1.3.3
+git push origin releases/v1.3.3
+```
+
+Once the pipeline completes, review and merge the PR. Then update `docker-compose.yml` to reference the new image tag and redeploy.
+
+> **Prerequisite:** A `GITHUB_PAT` secret must be configured in Azure Pipelines (Pipeline → Edit → Variables) with a GitHub token (classic) that has **Pull requests: Read and write** access on this repo.
+
+---
+
 ## Typical edit workflow
 
 1. `wiki_search` — find the page
@@ -137,22 +157,22 @@ Use `wiki_edit_page` only when creating a new page or doing a full rewrite.
 ## Use Cases
 
   Lookup & Research
-  - "Find the static IP for host stg-cpa-app14" — search then read the relevant IP page
+  - "Find the static IP for host stg-app14" — search then read the relevant IP page
   - "What's the HAProxy config for the DTS environment?" — search + get sections
   - "Summarize everything we have documented on ESX performance tuning"
 
   Keeping Docs Up to Date
-  - "We decommissioned BE-CPA-Build5 — find every page that mentions it and update them"
-  - "Add stg-cpa-app14 with IP 192.168.x.x to the Static IP Addresses page"
+  - "We decommissioned BE-Build5 — find every page that mentions it and update them"
+  - "Add stg-app14 with IP 192.168.x.x to the Static IP Addresses page"
   - "Append a post-mortem summary to the incident page for last night's outage"
 
   Onboarding / Knowledge Retrieval
-  - "What hosts are in the Bourne End DTS environment?" — search + read + summarize
-  - "Give me a runbook for setting up a new CPA QA server based on the wiki"
+  - "What hosts are in the DTS environment?" — search + read + summarize
+  - "Give me a runbook for setting up a new QA server based on the wiki"
 
   Auditing & Cross-Referencing
   - "List all pages and flag any that haven't been updated recently" (via list + get)
   - "Find all pages referencing a specific VLAN or subnet"
 
   Assisted Authoring
-  - "Draft a new wiki page for stg-cpa-app14 based on similar host pages" — read a template page, then create a new one
+  - "Draft a new wiki page for stg-app14 based on similar host pages" — read a template page, then create a new one
