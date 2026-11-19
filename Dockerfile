@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Install dependencies first (cached layer)
 COPY requirements.txt .
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
