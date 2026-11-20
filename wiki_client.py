@@ -22,17 +22,24 @@ logger = logging.getLogger(__name__)
 
 
 class WikiClient:
-    def __init__(self, base_url: str, username: str, password: str, totp_secret: str):
+    def __init__(self, base_url: str, username: str, password: str, totp_secret: str,
+                 mandatory_categories: list[str] | None = None):
         """
-        :param base_url:     Root URL of the wiki, e.g. https://wiki.example.com
-        :param username:     Bot account username (from Special:BotPasswords)
-        :param password:     Bot account password
-        :param totp_secret:  Base32 TOTP secret for two-factor authentication
+        :param base_url:             Root URL of the wiki, e.g. https://wiki.example.com
+        :param username:             Bot account username (from Special:BotPasswords)
+        :param password:             Bot account password
+        :param totp_secret:          Base32 TOTP secret for two-factor authentication
+        :param mandatory_categories: Category names to append to every page write.
+                                     Applied by _inject_categories() in edit_page and
+                                     append_to_page. section_edit is excluded because
+                                     it doesn't own the full page wikitext.
         """
         self.api_url = base_url.rstrip("/") + "/api.php"
         self.username = username
         self.password = password
         self.totp = pyotp.TOTP(totp_secret)
+
+        self._mandatory_categories = mandatory_categories or []
 
         # A Session persists cookies across requests — essential for auth
         self.session = requests.Session()
@@ -119,6 +126,23 @@ class WikiClient:
         })
         r.raise_for_status()
         return r.json()["query"]["tokens"]["csrftoken"]
+
+    def _inject_categories(self, text: str) -> str:
+        """
+        Append any mandatory categories that aren't already present in the wikitext.
+        MediaWiki collects [[Category:X]] tags from anywhere in the page, so appending
+        to the end is conventional and safe. Already-present categories are skipped to
+        avoid duplicates when the same page is written multiple times.
+        Configured via WIKI_MANDATORY_CATEGORIES in .env.
+        """
+        missing = [
+            f"[[Category:{c}]]"
+            for c in self._mandatory_categories
+            if f"[[Category:{c}]]" not in text
+        ]
+        if not missing:
+            return text
+        return text.rstrip("\n") + "\n" + "\n".join(missing) + "\n"
 
     # -------------------------------------------------------------------------
     # Read operations
@@ -234,6 +258,7 @@ class WikiClient:
     def edit_page(self, title: str, content: str, summary: str = "Edited via MCP") -> dict:
         """
         Create or overwrite a wiki page with the given wikitext.
+        Mandatory categories (WIKI_MANDATORY_CATEGORIES) are injected before posting.
 
         :param title:   Page title
         :param content: Full wikitext for the page
@@ -245,7 +270,7 @@ class WikiClient:
         r = self.session.post(self.api_url, data={
             "action":  "edit",
             "title":   title,
-            "text":    content,       # Replaces the entire page content
+            "text":    self._inject_categories(content),
             "summary": summary,
             "token":   csrf_token,
             "format":  "json",
@@ -271,6 +296,10 @@ class WikiClient:
 
         Use get_page() first to read the page and count sections manually,
         or use get_page_sections() to get an indexed list.
+
+        Note: mandatory categories are NOT injected here. Categories belong at page
+        level, not inside a section, and this method doesn't own the full page wikitext.
+        If the page needs categories applied, use edit_page() instead.
         """
         csrf_token = self._get_csrf_token()
 
@@ -328,13 +357,16 @@ class WikiClient:
         """
         Append wikitext to the END of an existing page without overwriting it.
         Useful for adding entries to log pages, changelogs, etc.
+        Mandatory categories (WIKI_MANDATORY_CATEGORIES) are injected into the appended
+        content. Because the existing page may already carry these categories, _inject_categories
+        checks for duplicates before adding.
         """
         csrf_token = self._get_csrf_token()
 
         r = self.session.post(self.api_url, data={
             "action":  "edit",
             "title":   title,
-            "appendtext": content,    # appendtext instead of text = non-destructive
+            "appendtext": self._inject_categories(content),
             "summary": summary,
             "token":   csrf_token,
             "format":  "json",

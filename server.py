@@ -40,6 +40,7 @@ wiki = WikiClient(
     username=config["WIKI_USERNAME"],
     password=config["WIKI_PASSWORD"],
     totp_secret=config["WIKI_TOTP_SECRET"],
+    mandatory_categories=config["WIKI_MANDATORY_CATEGORIES"],
 )
 
 # The Server object is the core MCP server. We give it a name and version

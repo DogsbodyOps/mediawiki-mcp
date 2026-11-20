@@ -120,4 +120,6 @@ if __name__ == "__main__":
     print(f"Starting MediaWiki MCP HTTP server on port {port}")
     if not config["MCP_API_KEY"]:
         print("WARNING: MCP_API_KEY is not set — server is unauthenticated")
+    if not config["WIKI_MANDATORY_CATEGORIES"]:
+        print("WARNING: WIKI_MANDATORY_CATEGORIES is not set — no categories will be automatically added to pages")
     uvicorn.run(starlette_app, host="0.0.0.0", port=port)

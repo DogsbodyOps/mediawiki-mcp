@@ -35,7 +35,13 @@ def get_config() -> dict:
 
     return {
         **required,
-        "MCP_API_KEY":      os.getenv("MCP_API_KEY"),
-        "PORT":             int(os.getenv("PORT", "8000")),
-        "WIKI_ALLOW_WRITE": os.getenv("WIKI_ALLOW_WRITE", "false").lower() in ("1", "true", "yes"),
+        "MCP_API_KEY":           os.getenv("MCP_API_KEY"),
+        "PORT":                  int(os.getenv("PORT", "8000")),
+        "WIKI_ALLOW_WRITE":      os.getenv("WIKI_ALLOW_WRITE", "false").lower() in ("1", "true", "yes"),
+        # Comma-separated list of MediaWiki category names to stamp on every page write.
+        # e.g. WIKI_MANDATORY_CATEGORIES=MCP Edited,Infrastructure
+        # Empty string (default) disables the feature. See WikiClient._inject_categories.
+        "WIKI_MANDATORY_CATEGORIES": [
+            c.strip() for c in os.getenv("WIKI_MANDATORY_CATEGORIES", "").split(",") if c.strip()
+        ],
     }
